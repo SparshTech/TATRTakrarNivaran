@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:foldable_sidebar/foldable_sidebar.dart';
 import 'package:provider/provider.dart';
 import 'package:sweetalertv2/sweetalertv2.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:swipedetector/swipedetector.dart';
 
 import '../translations/locale_keys.g.dart';
 import '../providers/registered_users.dart';
+import '../widgets/session_alert.dart';
 import '../widgets/show_list.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/filter_list.dart';
@@ -17,6 +20,9 @@ class RegistrationListScreen extends StatefulWidget {
 }
 
 class _RegistrationListScreenState extends State<RegistrationListScreen> {
+  // _init is used to control the didChangeDependencies() methods executions
+  var _init = true;
+  FSBStatus drawerStatus;
   final String _listType = "users";
   // Default criteria is pending
   String _crit = "NA";
@@ -28,12 +34,11 @@ class _RegistrationListScreenState extends State<RegistrationListScreen> {
     LocaleKeys.reporting.tr()
   ];
   var _selectedIndex = 0;
+
   // Fetch data based on fliter value selected according to index
   // it's sequence should be matched with _filters List
   void _filterData(index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    _selectedIndex = index;
     switch (_selectedIndex) {
       case 0:
         setState(() {
@@ -74,13 +79,19 @@ class _RegistrationListScreenState extends State<RegistrationListScreen> {
       final response =
           await Provider.of<RegisteredUsers>(context, listen: false)
               .fetchAndSetRegisteredUsers(filterValue);
-      if (response != 0) {
+      if (response['Result'] == "NOK") {
         // Show message if any error occured while fetching the Registered users
         SweetAlertV2.show(context,
             title: LocaleKeys.error.tr(),
             subtitle: response,
             style: SweetAlertV2Style.error);
-        return;
+      } else if (response['Result'] == "SESS") {
+        return showDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black45,
+          builder: (context) => SessionAlert(response['Msg']),
+        );
       }
     } catch (error) {
       if (error != null) {
@@ -93,6 +104,27 @@ class _RegistrationListScreenState extends State<RegistrationListScreen> {
     }
   }
 
+  void _toggleAppDrawer() {
+    setState(() {
+      drawerStatus = drawerStatus == FSBStatus.FSB_OPEN
+          ? FSBStatus.FSB_CLOSE
+          : FSBStatus.FSB_OPEN;
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    if (!_init) {
+      return;
+    }
+    final filterIndex = ModalRoute.of(context).settings.arguments as int;
+    if (filterIndex != null) {
+      _filterData(filterIndex);
+    }
+    _init = false;
+    super.didChangeDependencies();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,50 +134,68 @@ class _RegistrationListScreenState extends State<RegistrationListScreen> {
         backgroundColor: Color(0xFF581845),
         elevation: 0,
         centerTitle: true,
+        leading:
+            IconButton(onPressed: _toggleAppDrawer, icon: Icon(Icons.menu)),
         title: Text(LocaleKeys.registration_list.tr()),
       ),
-      drawer: AppDrawer(),
+      // drawer: AppDrawer(),
       body: SafeArea(
         bottom: false,
-        child: Container(
-          // decoration: BoxDecoration(
-          //   image: DecorationImage(
-          //       image: AssetImage("assets/images/background-waterfall.jpg"),
-          //       fit: BoxFit.fill),
-          // ),
-          child: Column(
-            children: <Widget>[
-              // SearchBox(),
-              FilterList(_filters, _filterData, _selectedIndex),
-              SizedBox(height: 10),
-              Expanded(
-                child: Stack(
-                  children: <Widget>[
-                    // Our background
-                    Container(
-                      margin: EdgeInsets.only(top: 60),
-                      decoration: BoxDecoration(
-                        color: Color(0xFFF1EFF1),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(40),
-                          topRight: Radius.circular(40),
+        child: SwipeDetector(
+          onSwipeLeft: _toggleAppDrawer,
+          onSwipeRight: _toggleAppDrawer,
+          child: FoldableSidebarBuilder(
+            drawerBackgroundColor: Color(0xFF581845),
+            status: drawerStatus,
+            drawer: AppDrawer(
+              closeDrawer: () {
+                setState(() {
+                  drawerStatus = FSBStatus.FSB_CLOSE;
+                });
+              },
+            ),
+            screenContents: Container(
+              // decoration: BoxDecoration(
+              //   image: DecorationImage(
+              //       image: AssetImage("assets/images/background-waterfall.jpg"),
+              //       fit: BoxFit.fill),
+              // ),
+              child: Column(
+                children: <Widget>[
+                  // SearchBox(),
+                  FilterList(_filters, _filterData, _selectedIndex),
+                  SizedBox(height: 10),
+                  Expanded(
+                    child: Stack(
+                      children: <Widget>[
+                        // Our background
+                        Container(
+                          margin: EdgeInsets.only(top: 60),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFF1EFF1),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(40),
+                              topRight: Radius.circular(40),
+                            ),
+                          ),
                         ),
-                      ),
+                        FutureBuilder(
+                          // Fetch registered user list based on selected filter criteria
+                          future: _fetchAndSetRegistrations(_crit),
+                          builder: (ctx, resultSnapshot) =>
+                              resultSnapshot.connectionState ==
+                                      ConnectionState.waiting
+                                  ? Center(
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : ShowList(_listType),
+                        ),
+                      ],
                     ),
-                    FutureBuilder(
-                        // Fetch registered user list based on selected filter criteria
-                        future: _fetchAndSetRegistrations(_crit),
-                        builder: (ctx, resultSnapshot) =>
-                            resultSnapshot.connectionState ==
-                                    ConnectionState.waiting
-                                ? Center(
-                                    child: CircularProgressIndicator(),
-                                  )
-                                : ShowList(_listType)),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

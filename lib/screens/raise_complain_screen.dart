@@ -9,6 +9,7 @@ import '../providers/complaints.dart';
 import '../translations/locale_keys.g.dart';
 import '../config/palette.dart';
 import '../widgets/form_field.dart' as padding;
+import '../widgets/session_alert.dart';
 import '../providers/categories.dart';
 import '../models/complaint.dart';
 import '../models/category.dart';
@@ -100,12 +101,13 @@ class _RaiseComplainScreenState extends State<RaiseComplainScreen> {
             title: LocaleKeys.error.tr(),
             subtitle: res['Msg'],
             style: SweetAlertV2Style.error);
-      } else {
-        // Show message if any error occurs while saving complaint
-        SweetAlertV2.show(context,
-            title: LocaleKeys.error.tr(),
-            subtitle: LocaleKeys.error_while_submit_com.tr(),
-            style: SweetAlertV2Style.error);
+      } else if (res['Result'] == "SESS") {
+        return showDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black45,
+          builder: (context) => SessionAlert(res['Msg']),
+        );
       }
     } catch (error) {
       setState(() {
@@ -351,20 +353,23 @@ class _RaiseComplainScreenState extends State<RaiseComplainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFF035AA6),
+      appBar: AppBar(
+        brightness: Brightness.dark,
         backgroundColor: Color(0xFF035AA6),
-        appBar: AppBar(
-          brightness: Brightness.dark,
-          backgroundColor: Color(0xFF035AA6),
-          elevation: 0,
-          centerTitle: true,
-          title: Text(LocaleKeys.new_complaint.tr()),
-        ),
-        body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(),
-              )
-            : SafeArea(
-                bottom: false,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(LocaleKeys.new_complaint.tr()),
+      ),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(),
+            )
+          : SafeArea(
+              bottom: false,
+              child: TweenAnimationBuilder(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: Duration(milliseconds: 2000),
                 child: Center(
                   child: Container(
                     child: Column(
@@ -422,6 +427,23 @@ class _RaiseComplainScreenState extends State<RaiseComplainScreen> {
                       ],
                     ),
                   ),
-                )));
+                ),
+                builder: (context, value, child) => ShaderMask(
+                  shaderCallback: (rect) => RadialGradient(
+                    radius: value * 5,
+                    colors: [
+                      Colors.white,
+                      Colors.white,
+                      Colors.transparent,
+                      Colors.transparent
+                    ],
+                    stops: [0.0, 0.55, 0.6, 1.0],
+                    center: FractionalOffset(0.95, 0.90),
+                  ).createShader(rect),
+                  child: child,
+                ),
+              ),
+            ),
+    );
   }
 }

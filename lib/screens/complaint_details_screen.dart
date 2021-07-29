@@ -10,10 +10,11 @@ import 'package:open_file/open_file.dart';
 
 import '../config/palette.dart';
 import '../translations/locale_keys.g.dart';
-import '../models/comments.dart';
 import '../models/complaint.dart';
 import '../providers/complaints.dart';
 import '../providers/auth.dart';
+import '../widgets/saved_remarks.dart';
+import '../widgets/session_alert.dart';
 
 class ComplaintDetailsScreen extends StatefulWidget {
   static const routeName = '/complaint-detail-screen';
@@ -25,6 +26,8 @@ class ComplaintDetailsScreen extends StatefulWidget {
 class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   // _isLoading is used to diaplay the circular progress indicator while screen is loading
   var _isLoading = false;
+  // _rmrkSvFlag is used to save the user remarks to auto fill the remarks
+  var _rmrkSvFlag = false;
   // _rmrkController used to store the remarks / comments while taking any action on complaint.
   TextEditingController _rmrkController = TextEditingController();
 
@@ -34,9 +37,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
       case "NA":
         return LocaleKeys.pending.tr();
       case "A":
-        return LocaleKeys.approved.tr();
-      case "R":
-        return LocaleKeys.rejected.tr();
+        return LocaleKeys.solved.tr();
       case "H":
         return LocaleKeys.on_hold.tr();
       case "C":
@@ -55,12 +56,10 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
         return Colors.yellow.shade400;
       case "A":
         return Colors.green.shade400;
-      case "R":
-        return Colors.red.shade400;
       case "H":
         return Colors.orange.shade400;
       case "C":
-        return Colors.blue.shade400;
+        return Colors.red.shade400;
       case "AH":
         return Colors.purple.shade400;
       default:
@@ -99,175 +98,267 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
 
 // This method displays the list of comments which mentioned while taking action of complait
   Future<void> showComments(BuildContext context, int cmpId) async {
-    /// Get the comments on perticular complaint using complaint id
-    final List<Comment> comments =
-        await Provider.of<Complaints>(context, listen: false)
-            .getComments(cmpId);
+    try {
+      /// Get the comments on perticular complaint using complaint id
+      final result = await Provider.of<Complaints>(context, listen: false)
+          .getComments(cmpId);
 
-    /// If there is no comment return null
-    return comments == null
-        ? SweetAlertV2.show(context,
+      /// If there is no comment return null
+      if (result['Result'] == "NOK") {
+        SweetAlertV2.show(context,
             title: LocaleKeys.error.tr(),
-            subtitle: LocaleKeys.error_while_loading_com.tr(),
-            style: SweetAlertV2Style.error)
-        : showGeneralDialog(
-            context: context,
-            barrierDismissible: true,
-            barrierLabel:
-                MaterialLocalizations.of(context).modalBarrierDismissLabel,
-            barrierColor: Colors.black45,
-            transitionDuration: const Duration(milliseconds: 200),
-            pageBuilder: (BuildContext buildContext, Animation animation,
-                Animation secondaryAnimation) {
-              return Center(
-                child: Container(
-                  width: MediaQuery.of(context).size.width - 10,
-                  height: MediaQuery.of(context).size.height - 80,
-                  padding: EdgeInsets.all(20),
-                  color: Colors.white,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Material(
-                          /// Display the list of comments
-                          child: ListView.builder(
-                            itemCount: comments.length,
-                            itemBuilder: (ctx, index) => Column(
-                              children: [
-                                SizedBox(height: 5),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 15, // 30 padding
-                                        vertical: 5, // 5 top and bottom
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _getColor(comments[index].value),
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(22),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        _getStatus(comments[index].value),
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                ListTile(
-                                  title: Text("${comments[index].text}"),
-                                  subtitle: Text("${comments[index].no}"),
-                                ),
-                                Divider(
-                                  height: 0.6,
-                                  color: Colors.deepOrange,
+            subtitle: result['Msg'],
+            style: SweetAlertV2Style.error);
+      } else if (result['Result'] == "SESS") {
+        return showDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black45,
+          builder: (context) => SessionAlert(result['Msg']),
+        );
+      } else if (result['Result'] == "OK") {
+        return showGeneralDialog(
+          context: context,
+          barrierDismissible: true,
+          barrierLabel:
+              MaterialLocalizations.of(context).modalBarrierDismissLabel,
+          barrierColor: Colors.black45,
+          transitionDuration: const Duration(milliseconds: 200),
+          pageBuilder: (BuildContext buildContext, Animation animation,
+              Animation secondaryAnimation) {
+            return Center(
+              child: Container(
+                width: MediaQuery.of(context).size.width - 10,
+                height: MediaQuery.of(context).size.height - 80,
+                padding: EdgeInsets.all(20),
+                color: Colors.white,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Material(
+                        /// Display the list of comments
+                        child: Consumer<Complaints>(
+                          builder: (ctx, cmp, _) => cmp.comments.length <= 0
+                              ? Center(
+                                  child: Text(
+                                      LocaleKeys.comments_not_available.tr()),
                                 )
-                              ],
-                            ),
-                          ),
+                              : ListView.builder(
+                                  itemCount: cmp.comments.length,
+                                  itemBuilder: (ctx, index) => Column(
+                                    children: [
+                                      SizedBox(height: 5),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 15, // 30 padding
+                                              vertical: 5, // 5 top and bottom
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _getColor(
+                                                  cmp.comments[index].value),
+                                              borderRadius: BorderRadius.all(
+                                                Radius.circular(22),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              _getStatus(
+                                                  cmp.comments[index].value),
+                                              style: TextStyle(
+                                                  color: Colors.white),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      ListTile(
+                                        title:
+                                            Text("${cmp.comments[index].text}"),
+                                        subtitle:
+                                            Text("${cmp.comments[index].no}"),
+                                      ),
+                                      Divider(
+                                        height: 0.6,
+                                        color: Colors.deepOrange,
+                                      )
+                                    ],
+                                  ),
+                                ),
                         ),
                       ),
-                      // Button to close the dialog
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                            elevation: 12,
-                            primary: Colors.red, // background
-                            onPrimary: Colors.white,
-                            textStyle: TextStyle(fontSize: 16)),
-                        label: Text(LocaleKeys.close.tr()),
-                        icon: Icon(Icons.highlight_remove_outlined),
-                        onPressed: () {
-                          setState(() {
-                            Navigator.pop(context);
-                          });
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                    // Button to close the dialog
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                          elevation: 12,
+                          primary: Colors.red, // background
+                          onPrimary: Colors.white,
+                          textStyle: TextStyle(fontSize: 16)),
+                      label: Text(LocaleKeys.close.tr()),
+                      icon: Icon(Icons.highlight_remove_outlined),
+                      onPressed: () {
+                        setState(() {
+                          Navigator.pop(context);
+                        });
+                      },
+                    ),
+                  ],
                 ),
-              );
-            });
+              ),
+            );
+          },
+        );
+      }
+    } catch (error) {
+      SweetAlertV2.show(context,
+          title: LocaleKeys.error.tr(),
+          subtitle: LocaleKeys.error_while_loading_com.tr(),
+          style: SweetAlertV2Style.error);
+    }
   }
 
 // This method displays dialog while taking any action on complaint
   Future<void> _displayDialog(
       BuildContext context, String heading, String stat, int cmpId) async {
+    // _isShowRemarks used to show/hide the saved remarks list
+    var _isShowRemarks = false;
     var errorFlag = false;
     _rmrkController.text = null;
+    _setRemarks(String remark) {
+      setState(() {
+        _rmrkController.text = remark;
+      });
+      Navigator.pop(context);
+      _displayDialog(context, heading, stat, cmpId);
+    }
+
     return showDialog(
         context: context,
         builder: (context) {
           return StatefulBuilder(
             builder: (context, setState) => AlertDialog(
-              title: Text(heading),
+              title: _isShowRemarks
+                  ? Text(LocaleKeys.saved_remarks.tr())
+                  : Text(heading),
               content: SingleChildScrollView(
-                child: Container(
-                  height: 170,
-                  child: Column(
-                    children: [
-                      if (errorFlag)
-                        Text(
-                          "${LocaleKeys.please_enter_remarks.tr()}*",
-                          style: TextStyle(color: Colors.red),
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 2000),
+                  curve: Curves.fastOutSlowIn,
+                  height: _isShowRemarks
+                      ? MediaQuery.of(context).size.height * .70
+                      : 200,
+                  child: _isShowRemarks
+                      ? SavedRemarks(_setRemarks)
+                      : SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              if (errorFlag)
+                                Text(
+                                  "${LocaleKeys.please_enter_remarks.tr()}*",
+                                  style: TextStyle(color: Colors.red),
+                                ),
+
+                              // the texfield is given to enter the remarks while acting on complaint
+                              TextField(
+                                maxLines: 5,
+                                controller: _rmrkController,
+                                decoration: InputDecoration(
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: Palette.textColor1),
+                                      // borderRadius: BorderRadius.all(Radius.circular(35.0)),
+                                    ),
+                                    hintText: LocaleKeys.enter_remarks.tr()),
+                              ),
+                              // Checkbox to save entered remarks for future auto fill use
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _rmrkSvFlag,
+                                    onChanged: (bool value) => setState(() {
+                                      _rmrkSvFlag = value;
+                                    }),
+                                  ),
+                                  Text(LocaleKeys.save_remark.tr()),
+                                ],
+                              )
+                            ],
+                          ),
                         ),
-                      // This textfield takes the remarks while acting on complaint
-                      TextField(
-                        maxLines: 5,
-                        controller: _rmrkController,
-                        decoration: InputDecoration(
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Palette.textColor1),
-                              // borderRadius: BorderRadius.all(Radius.circular(35.0)),
-                            ),
-                            hintText: LocaleKeys.enter_remarks.tr()),
-                      ),
-                    ],
-                  ),
                 ),
               ),
               // actions contains the "Yes" and "No" button to act on complaint
               actions: <Widget>[
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                      elevation: 12,
-                      primary: Colors.red, // background
-                      onPrimary: Colors.white,
-                      textStyle: TextStyle(fontSize: 18)),
-                  label: Text(LocaleKeys.no.tr()),
-                  icon: Icon(Icons.highlight_remove_outlined),
-                  onPressed: () {
-                    setState(() {
-                      _rmrkController.text = null;
-                      Navigator.pop(context);
-                    });
-                  },
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                      elevation: 12,
-                      primary: Colors.green, // background
-                      onPrimary: Colors.white,
-                      textStyle: TextStyle(fontSize: 18)),
-                  label: Text(LocaleKeys.yes.tr()),
-                  icon: Icon(Icons.check_circle_outline),
-                  onPressed: () {
-                    if (_rmrkController.text == null ||
-                        _rmrkController.text.trim() == "") {
+                if (_isShowRemarks)
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        elevation: 12,
+                        primary: Colors.red, // background
+                        onPrimary: Colors.white,
+                        textStyle: TextStyle(fontSize: 18)),
+                    label: Text(LocaleKeys.back.tr()),
+                    icon: Icon(Icons.arrow_back),
+                    onPressed: () {
                       setState(() {
-                        errorFlag = true;
+                        _isShowRemarks = !_isShowRemarks;
                       });
-                      return;
-                    }
-                    // Calling update status to update the status of complaint
-                    updateStatus(cmpId, stat, _rmrkController.text);
-                    setState(() {
-                      Navigator.pop(context);
-                    });
-                  },
-                ),
+                    },
+                  ),
+                if (!_isShowRemarks)
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        elevation: 12,
+                        primary: Colors.red, // background
+                        onPrimary: Colors.white,
+                        textStyle: TextStyle(fontSize: 18)),
+                    label: Text(LocaleKeys.no.tr()),
+                    icon: Icon(Icons.highlight_remove_outlined),
+                    onPressed: () {
+                      setState(() {
+                        _rmrkController.text = null;
+                        Navigator.pop(context);
+                      });
+                    },
+                  ),
+                if (!_isShowRemarks)
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        elevation: 12,
+                        primary: Colors.green, // background
+                        onPrimary: Colors.white,
+                        textStyle: TextStyle(fontSize: 18)),
+                    label: Text(LocaleKeys.yes.tr()),
+                    icon: Icon(Icons.check_circle_outline),
+                    onPressed: () {
+                      if (_rmrkController.text == null ||
+                          _rmrkController.text.trim() == "") {
+                        setState(() {
+                          errorFlag = true;
+                        });
+                        return;
+                      }
+                      // Calling update status to update the status of complaint
+                      updateStatus(
+                          cmpId, stat, _rmrkController.text, _rmrkSvFlag);
+                      setState(() {
+                        Navigator.pop(context);
+                      });
+                    },
+                  ),
+                if (!_isShowRemarks)
+                  IconButton(
+                    onPressed: () => setState(() {
+                      _isShowRemarks = !_isShowRemarks;
+                    }),
+                    icon: Icon(
+                      Icons.comment_bank_outlined,
+                      color: Colors.orange[900],
+                      size: 35,
+                    ),
+                  ),
               ],
             ),
           );
@@ -275,7 +366,8 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   }
 
   // This method update the status of complaint Like "Transfer", "approved", etc.
-  void updateStatus(int cmpId, String stat, String rmrk) async {
+  void updateStatus(
+      int cmpId, String stat, String rmrk, bool rmrkSvFlag) async {
     setState(() {
       // Show circular progrss indicator
       _isLoading = true;
@@ -283,7 +375,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
     try {
       // Calling updateComplaint() method of Complaints class
       final resp = await Provider.of<Complaints>(context, listen: false)
-          .updateComplaint(cmpId, stat, rmrk.trim());
+          .updateComplaint(cmpId, stat, rmrk.trim(), rmrkSvFlag);
 
       setState(() {
         // Hide circular progrss indicator and display complaint screen
@@ -296,6 +388,13 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
             title: "${LocaleKeys.updated.tr()}!",
             subtitle: resp['Msg'],
             style: SweetAlertV2Style.success);
+      } else if (resp['Result'] == "SESS") {
+        return showDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black45,
+          builder: (context) => SessionAlert(resp['Msg']),
+        );
       } else {
         SweetAlertV2.show(context,
             title: LocaleKeys.error.tr(),
@@ -602,6 +701,23 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                       '${LocaleKeys.donwload_attachment.tr()}'),
                                 ),
                         if (int.parse(comp.complaint.cmpInitBy) == _uid &&
+                            comp.complaint.stat == "AR")
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              elevation: 12,
+                              primary: Colors.orange, // background
+                              onPrimary: Colors.white, // foreground
+                              textStyle: TextStyle(fontSize: 18),
+                            ),
+                            icon: Icon(Icons.reply),
+                            label: Text("${LocaleKeys.reply.tr()}"),
+                            onPressed: () => _displayDialog(
+                                context,
+                                LocaleKeys.do_you_want_to_reply.tr(),
+                                "NA",
+                                comp.complaint.cmpId),
+                          ),
+                        if (int.parse(comp.complaint.cmpInitBy) == _uid &&
                             comp.complaint.stat != "NA" &&
                             comp.complaint.stat != "H")
                           Row(
@@ -620,7 +736,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                   onPressed: () => _displayDialog(
                                       context,
                                       LocaleKeys.do_you_want_to_reopen.tr(),
-                                      "NA",
+                                      "RO",
                                       comp.complaint.cmpId),
                                 ),
                               ),
@@ -662,33 +778,32 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                             primary: Colors.green, // background
                                             onPrimary: Colors.white,
                                             textStyle: TextStyle(fontSize: 18)),
-                                        label: Text(LocaleKeys.apprv.tr()),
+                                        label: Text(LocaleKeys.solve.tr()),
                                         icon: Icon(Icons.check_circle_outline),
                                         onPressed: () => _displayDialog(
                                             context,
-                                            LocaleKeys.do_you_want_to_approve
-                                                .tr()
+                                            LocaleKeys.do_you_want_to_solve
                                                 .tr(),
                                             "A",
                                             comp.complaint.cmpId),
                                       ),
                                     ),
                                     Flexible(
-                                      // Button to reject the complaint
+                                      // Button to reply the complaint
                                       child: ElevatedButton.icon(
                                         style: ElevatedButton.styleFrom(
                                           elevation: 12,
-                                          primary: Colors.red, // background
+                                          primary: Colors.orange, // background
                                           onPrimary: Colors.white, // foreground
                                           textStyle: TextStyle(fontSize: 18),
                                         ),
-                                        icon: Icon(Icons.cancel_outlined),
-                                        label: Text(LocaleKeys.reject.tr()),
+                                        icon: Icon(Icons.reply),
+                                        label: Text("${LocaleKeys.reply.tr()}"),
                                         onPressed: () => _displayDialog(
                                             context,
-                                            LocaleKeys.do_you_want_to_rejec
+                                            LocaleKeys.do_you_want_to_reply
                                                 .tr(),
-                                            "R",
+                                            "AR",
                                             comp.complaint.cmpId),
                                       ),
                                     ),

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:foldable_sidebar/foldable_sidebar.dart';
 import 'package:provider/provider.dart';
 import 'package:sweetalertv2/sweetalertv2.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:swipedetector/swipedetector.dart';
 
 import '../translations/locale_keys.g.dart';
 import '../models/profile.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/session_alert.dart';
 import '../config/palette.dart';
 import '../widgets/form_field.dart' as padding;
 import '../widgets/change_password.dart';
@@ -18,6 +21,7 @@ class ProfilePageScreen extends StatefulWidget {
 }
 
 class _ProfilePageScreenState extends State<ProfilePageScreen> {
+  FSBStatus drawerStatus;
   // _pwdchng used to hide or show password change screen
   var _pwdchng = false;
   //  _isLoading used to show circular progress indicator while loading the data on screen
@@ -44,6 +48,14 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> {
     });
   }
 
+  void _toggleAppDrawer() {
+    setState(() {
+      drawerStatus = drawerStatus == FSBStatus.FSB_OPEN
+          ? FSBStatus.FSB_CLOSE
+          : FSBStatus.FSB_OPEN;
+    });
+  }
+
 // getUserPrfile() method to get the logged in user profile details
   Future<void> getUserPrfile() async {
     try {
@@ -57,12 +69,19 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> {
         // Set false to hide circular progress indicator data fetched from server
         _isLoading = false;
       });
-      if (resp['Result'] != "OK") {
+      if (resp['Result'] == "NOK") {
         // Show message if any error occurs while getting user profile details
         SweetAlertV2.show(context,
             title: '${LocaleKeys.svd.tr()}!',
             subtitle: resp['Msg'],
             style: SweetAlertV2Style.success);
+      } else if (resp['Result'] == "SESS") {
+        return showDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black45,
+          builder: (context) => SessionAlert(resp['Msg']),
+        );
       }
     } catch (error) {
       if (error != null) {
@@ -117,7 +136,14 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> {
             title: "${LocaleKeys.svd.tr()}!",
             subtitle: respo['Msg'],
             style: SweetAlertV2Style.success);
-      } else {
+      } else if (respo['Result'] == "SESS") {
+        return showDialog(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black45,
+          builder: (context) => SessionAlert(respo['Msg']),
+        );
+      } else if (respo['Result'] == "NOK") {
 //  Show message if any error occures while updating the profile
         SweetAlertV2.show(context,
             title: LocaleKeys.error.tr(),
@@ -170,8 +196,7 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> {
   @override
   Widget build(BuildContext context) {
     // Get fetched user profile data from Auth provder class
-    final Profile profile =
-        Provider.of<Auth>(context, listen: false).userProfile;
+    final Profile profile = Provider.of<Auth>(context).userProfile;
     Widget _heading(String heading) {
       return Container(
         width: MediaQuery.of(context).size.width * 0.80, //80% of width,
@@ -197,18 +222,6 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> {
                 ? Text(LocaleKeys.cancel.tr())
                 : Text(LocaleKeys.edit.tr()),
           ),
-          // if (!_isEditable)
-          // Button to toggle between profile form fields and profile details
-          // ElevatedButton.icon(
-          //   style: ElevatedButton.styleFrom(
-          //     elevation: 12,
-          //     primary: , // background
-          //     onPrimary: Colors.white, // foreground
-          //   ),
-          //   onPressed: _toggleEdit,
-          //   icon: ,
-          //   label: ,
-          // ),
         ]),
       );
     }
@@ -468,70 +481,87 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> {
         backgroundColor: Color(0xFF581845),
         elevation: 0,
         centerTitle: true,
+        leading:
+            IconButton(onPressed: _toggleAppDrawer, icon: Icon(Icons.menu)),
         title: Text(LocaleKeys.user_profile.tr()),
       ),
       // Side Navigation drower
-      drawer: AppDrawer(),
-      body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(),
-            )
-          : SafeArea(
-              bottom: false,
-              child: Container(
-                child: Column(
-                  children: [
-                    if (!_isEditable)
-                      Container(
-                        // margin: EdgeInsets.all(10),
-                        width: MediaQuery.of(context).size.width * 0.80,
-                        child: Center(
-                          child: Text(
-                            '${profile.uFname} ${profile.uMname} ${profile.uLname}',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                      ),
-                    if (!_pwdchng) _heading(LocaleKeys.user_profile.tr()),
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          // Our background
+      // drawer: AppDrawer(),
+      body: SwipeDetector(
+        onSwipeLeft: _toggleAppDrawer,
+        onSwipeRight: _toggleAppDrawer,
+        child: FoldableSidebarBuilder(
+          drawerBackgroundColor: Color(0xFF581845),
+          status: drawerStatus,
+          drawer: AppDrawer(
+            closeDrawer: () {
+              setState(() {
+                drawerStatus = FSBStatus.FSB_CLOSE;
+              });
+            },
+          ),
+          screenContents: _isLoading
+              ? Center(
+                  child: CircularProgressIndicator(),
+                )
+              : SafeArea(
+                  bottom: false,
+                  child: Container(
+                    child: Column(
+                      children: [
+                        if (!_isEditable)
                           Container(
-                            height: MediaQuery.of(context).size.height,
-                            width: MediaQuery.of(context).size.width,
-                            margin: EdgeInsets.only(top: 30),
-                            decoration: BoxDecoration(
-                              color: Color(0xFFF1EFF1),
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(40),
-                                topRight: Radius.circular(40),
+                            // margin: EdgeInsets.all(10),
+                            width: MediaQuery.of(context).size.width * 0.80,
+                            child: Center(
+                              child: Text(
+                                '${profile.uFname} ${profile.uMname} ${profile.uLname}',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800),
                               ),
                             ),
                           ),
-                          if (!_pwdchng) _detailsCard(),
-                          if (_pwdchng)
-                            Container(
-                              margin: EdgeInsets.only(
-                                  top:
-                                      MediaQuery.of(context).size.height * .20),
-                              //  Change password widget
-                              child: ChangePassword(profile.uLoginId,
-                                  decoration, _togglePwdChange),
-                            ),
-                          SizedBox(
-                            height: 10,
+                        if (!_pwdchng) _heading(LocaleKeys.user_profile.tr()),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              // Our background
+                              Container(
+                                height: MediaQuery.of(context).size.height,
+                                width: MediaQuery.of(context).size.width,
+                                margin: EdgeInsets.only(top: 30),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFF1EFF1),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(40),
+                                    topRight: Radius.circular(40),
+                                  ),
+                                ),
+                              ),
+                              if (!_pwdchng) _detailsCard(),
+                              if (_pwdchng)
+                                Container(
+                                  margin: EdgeInsets.only(
+                                      top: MediaQuery.of(context).size.height *
+                                          .20),
+                                  //  Change password widget
+                                  child: ChangePassword(profile.uLoginId,
+                                      decoration, _togglePwdChange),
+                                ),
+                              SizedBox(
+                                height: 10,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+        ),
+      ),
     );
   }
 }

@@ -189,8 +189,8 @@ class CodegenLoader extends AssetLoader{
   "error_dashboard_summary": "Error while fetching the Dashboard Summary. Please check your internet connection.",
   "raise_complaint": "Raise Complaint",
   "track_it": "Track Complaint",
-  "total": "TOTAL",
-  "solved": "Approved",
+  "total": "Total",
+  "solved": "Solved",
   "error_while_downloading_updated_app": "Error while downloading updated app.",
   "downloading_updated_app": "Downloading updated version plesae wait...",
   "history": "View remarks",
@@ -198,7 +198,24 @@ class CodegenLoader extends AssetLoader{
   "please_enter_remarks": "Please enter remarks",
   "forgot_password": "Forgot Password?",
   "rejec": "Rejected",
-  "pending_comp": "Pending"
+  "pending_comp": "Pending",
+  "do_you_want_to_reply": "Do you want to reply this complaint?",
+  "pending_with_me": "Pending With Me",
+  "in_progress": "In Progress",
+  "saved_remarks": "Saved Remarks",
+  "save_remark": "Save remark",
+  "back": "Back",
+  "solve": "Solve",
+  "do_you_want_to_solve": "Do you want to solve the complaint?",
+  "no_remarks_available": "No Remarks Available",
+  "not_acted_in_7_days": "7 Days",
+  "comments_not_available": "Comments Not Available",
+  "do_you_really_want_to_exit": "Do you want to exit the app?",
+  "under_me": "Under me",
+  "total_users_under": "Total Users Under",
+  "error_while_getting_my_complaint_deails": "Error while getting My complaints details.",
+  "error_while_getting_under_my_authority_complaint": "Error while getting Under My Authority complaint details.",
+  "error_while_getting_assigned_to_me_complaint": "Error while getting Assigned To Me complaint details."
 };
 static const Map<String,dynamic> mr_IN = {
   "login": "लॉगिन",
@@ -384,7 +401,24 @@ static const Map<String,dynamic> mr_IN = {
   "please_enter_remarks": "कृपया टिप्पणी प्रविष्ट करा",
   "forgot_password": "संकेतशब्द विसरलात?",
   "rejec": "नाकारलेल्या तक्रारी",
-  "pending_comp": "प्रलंबित तक्रारी"
+  "pending_comp": "प्रलंबित तक्रारी",
+  "do_you_want_to_reply": "आपण या तक्रारीचे उत्तर देऊ इच्छिता?",
+  "pending_with_me": "माझ्याकडे प्रलंबित",
+  "in_progress": "चालु तक्रारी",
+  "saved_remarks": "जतन टिप्पण्या",
+  "save_remark": "टिप्पणी जतन करा",
+  "back": "मागे",
+  "solve": "निराकरण करा",
+  "do_you_want_to_solve": "आपण तक्रार सोडवू इच्छिता?",
+  "no_remarks_available": "टिप्पण्या उपलब्ध नाहीत",
+  "not_acted_in_7_days": "७ दिवसात न केलेल्या",
+  "comments_not_available": "टिप्पण्या उपलब्ध नाहीत",
+  "do_you_really_want_to_exit": "आपण अनुप्रयोगातून बाहेर पडू इच्छिता?",
+  "under_me": "माझ्या अधिकाराखाली",
+  "total_users_under": "अंतर्गत एकूण वापरकर्ते",
+  "error_while_getting_my_complaint_deails": "माझ्या तक्रारींचा तपशील मिळवताना त्रुटी.",
+  "error_while_getting_under_my_authority_complaint": "माझ्या प्राधिकरणा अंतर्गत तक्रारींचा तपशील मिळवताना त्रुटी.",
+  "error_while_getting_assigned_to_me_complaint": "मला नियुक्त केलेल्या तक्रारींचा तपशील घेताना त्रुटी."
 };
 static const Map<String, Map<String,dynamic>> mapLocales = {"en_US": en_US, "mr_IN": mr_IN};
 }
